@@ -16,5 +16,8 @@
   "bugs": {
     "url": "https://github.com/AParrino21/blockchain/issues"
   },
-  "homepage": "https://github.com/AParrino21/blockchain#readme"
+  "homepage": "https://github.com/AParrino21/blockchain#readme",
+  "dependencies": {
+    "sha256": "^0.2.0"
+  }
 }
