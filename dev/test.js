@@ -19,24 +19,28 @@ const bitcoin = new Blockchain
 // console.log(bitcoin);
 // console.log(bitcoin.chain[2]);
 
-const previousBlockHash = 'adfjalskdjfalskdfjasdfasdf'
-const currentBlockData = [
-    {
-        amount: 10,
-        sender: 'adklfjaklsdfja',
-        recipient: 'adfjalksdfjalk;dfasdfasdfaad'
-    },
-    {
-        amount: 30,
-        sender: 'fdfadsfasdfaklsdfja',
-        recipient: 'adsf4rfw4rfa4ffaad'
-    },
-    {
-        amount: 200,
-        sender: 'djfapdfphjfpoadhjfpaoshdfpoasd',
-        recipient: 'deunfnuadhfikdjfhkajhfaa'
-    }
-]
-const nonce = 100
+// const previousBlockHash = 'adfjalskdjfalskdfjasdfasdf'
+// const currentBlockData = [
+//     {
+//         amount: 10,
+//         sender: 'adklfjaklsdfja',
+//         recipient: 'adfjalksdfjalk;dfasdfasdfaad'
+//     },
+//     {
+//         amount: 30,
+//         sender: 'fdfadsfasdfaklsdfja',
+//         recipient: 'adsf4rfw4rfa4ffaad'
+//     },
+//     {
+//         amount: 200,
+//         sender: 'djfapdfphjfpoadhjfpaoshdfpoasd',
+//         recipient: 'deunfnuadhfikdjfhkajhfaa'
+//     }
+// ]
+// const nonce = 100
 
-console.log(bitcoin.hashBlock(previousBlockHash, currentBlockData, nonce))
+// console.log(bitcoin.hashBlock(previousBlockHash, currentBlockData, 12461))
+
+// console.log(bitcoin.proofOfWork(previousBlockHash, currentBlockData))
+
+console.log(bitcoin);
