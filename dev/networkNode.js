@@ -18,8 +18,31 @@ app.get('/blockchain', (req, res) => {
 })
 
 app.post('/transaction', (req, res) => {
-    const blockIndex = geppettoCoin.createNewTransaction(req.body.amount, req.body.sender, req.body.recipient)
-    res.json({ note: `Transaction will be added in block ${blockIndex}.` })
+    const newTransaction = req.body
+    const blockIndex = geppettoCoin.addTransactionToPendingTransactions(newTransaction)
+    res.json({ note: `Transaction will be added in block ${blockIndex}` })
+})
+
+app.post('/transaction/broadcast', (req, res) => {
+    const newTransaction = geppettoCoin.createNewTransaction(req.body.amount, req.body.sender, req.body.recipient);
+    geppettoCoin.addTransactionToPendingTransactions(newTransaction);
+
+    const requestPromises = [];
+    geppettoCoin.networkNodes.forEach(networkNodeUrl => {
+        const requestOptions = {
+            uri: networkNodeUrl + '/transaction',
+            method: 'POST',
+            body: newTransaction,
+            json: true
+        };
+
+        requestPromises.push(rp(requestOptions));
+    });
+
+    Promise.all(requestPromises)
+        .then(data => {
+            res.json({ note: 'Transaction created and broadcast successfully.' });
+        });
 })
 
 app.get('/mine', (req, res) => {
@@ -32,47 +55,95 @@ app.get('/mine', (req, res) => {
     const nonce = geppettoCoin.proofOfWork(previousBlockHash, currentBlockData)
     const blockHash = geppettoCoin.hashBlock(previousBlockHash, currentBlockData, nonce)
 
-    geppettoCoin.createNewTransaction(12.5, "00", nodeAddress)
-
     const newBlock = geppettoCoin.createNewBlock(nonce, previousBlockHash, blockHash)
 
-    res.json({
-        note: "New block mined successfully",
-        block: newBlock
+    const requestPromises = []
+    geppettoCoin.networkNodes.forEach(networkNodeUrl => {
+        const requestOptions = {
+            uri: networkNodeUrl + '/receive-new-block',
+            method: 'POST',
+            body: { newBlock: newBlock },
+            json: true
+        }
+
+        requestPromises.push(rp(requestOptions))
     })
+
+    Promise.all(requestPromises)
+        .then(data => {
+            const requestOptions = {
+                uri: geppettoCoin.currentNodeUrl + '/transaction/broadcast',
+                method: 'Post',
+                body: {
+                    amount: 12.5,
+                    sender: "00",
+                    recipient: nodeAddress
+                },
+                json: true
+            }
+
+            return rp(requestOptions)
+        })
+        .then(data => {
+            res.json({
+                note: "New block mined and broadcasted successfully",
+                block: newBlock
+            })
+        })
+})
+
+app.post('/receive-new-block', (req, res) => {
+    const newBlock = req.body.newBlock
+    const lastBlock = geppettoCoin.getLastBlock()
+    const correctHash = lastBlock.hash === newBlock.previousBlockHash
+    const correctIndex = lastBlock['index'] + 1 === newBlock['index']
+
+    if (correctHash && correctIndex) {
+        geppettoCoin.chain.push(newBlock)
+        geppettoCoin.pendingTransactions = []
+        res.json({
+            note: "New block reveiced and accepted",
+            newBlock: newBlock
+        })
+    } else {
+        res.json({
+            note: "New block rejected",
+            newBlock: newBlock
+        })
+    }
 })
 
 // will register a node and broadcast that node to the whole network
-app.post('/register-and-broadcast-node', function(req, res) {
-	const newNodeUrl = req.body.newNodeUrl;
-	if (geppettoCoin.networkNodes.indexOf(newNodeUrl) == -1) geppettoCoin.networkNodes.push(newNodeUrl);
+app.post('/register-and-broadcast-node', function (req, res) {
+    const newNodeUrl = req.body.newNodeUrl;
+    if (geppettoCoin.networkNodes.indexOf(newNodeUrl) == -1) geppettoCoin.networkNodes.push(newNodeUrl);
 
-	const regNodesPromises = [];
-	geppettoCoin.networkNodes.forEach(networkNodeUrl => {
-		const requestOptions = {
-			uri: networkNodeUrl + '/register-node',
-			method: 'POST',
-			body: { newNodeUrl: newNodeUrl },
-			json: true
-		};
+    const regNodesPromises = [];
+    geppettoCoin.networkNodes.forEach(networkNodeUrl => {
+        const requestOptions = {
+            uri: networkNodeUrl + '/register-node',
+            method: 'POST',
+            body: { newNodeUrl: newNodeUrl },
+            json: true
+        };
 
-		regNodesPromises.push(rp(requestOptions));
-	});
+        regNodesPromises.push(rp(requestOptions));
+    });
 
-	Promise.all(regNodesPromises)
-	.then(data => {
-		const bulkRegisterOptions = {
-			uri: newNodeUrl + '/register-nodes-bulk',
-			method: 'POST',
-			body: { allNetworkNodes: [ ...geppettoCoin.networkNodes, geppettoCoin.currentNodeUrl ] },
-			json: true
-		};
+    Promise.all(regNodesPromises)
+        .then(data => {
+            const bulkRegisterOptions = {
+                uri: newNodeUrl + '/register-nodes-bulk',
+                method: 'POST',
+                body: { allNetworkNodes: [...geppettoCoin.networkNodes, geppettoCoin.currentNodeUrl] },
+                json: true
+            };
 
-		return rp(bulkRegisterOptions);
-	})
-	.then(data => {
-		res.json({ note: 'New node registered with network successfully.' });
-	});
+            return rp(bulkRegisterOptions);
+        })
+        .then(data => {
+            res.json({ note: 'New node registered with network successfully.' });
+        });
 });
 
 // will register a node with the network
@@ -93,10 +164,10 @@ app.post('/register-nodes-bulk', (req, res) => {
     allNetworkNodes.forEach(networkNodeUrl => {
         const notNotAlreadyPresent = geppettoCoin.networkNodes.indexOf(networkNodeUrl) == -1
         const notCurrentNode = geppettoCoin.currentNodeUrl !== networkNodeUrl
-        if(notNotAlreadyPresent && notCurrentNode) geppettoCoin.networkNodes.push(networkNodeUrl)
+        if (notNotAlreadyPresent && notCurrentNode) geppettoCoin.networkNodes.push(networkNodeUrl)
     })
 
-    res.json({note: "Bulk registration successful"})
+    res.json({ note: "Bulk registration successful" })
 })
 
 app.listen(PORT, () => {
